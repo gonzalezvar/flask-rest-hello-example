@@ -9,6 +9,8 @@ from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
 from models import db, Student, Teacher, Course
+from routes import course_bp
+
 # from models import Person
 
 app = Flask(__name__)
@@ -26,6 +28,8 @@ MIGRATE = Migrate(app, db)
 db.init_app(app)
 CORS(app)
 setup_admin(app)
+
+app.register_blueprint(course_bp)
 
 # Handle/serialize errors like a JSON object
 
@@ -71,63 +75,6 @@ def get_all_teachers():
 """
 Cursos
 """
-
-
-@app.route('/courses', methods=["GET"])
-def get_all_courses():
-    raw_list_courses = Course.query.all()
-    list_courses = [course.serialize_with_relations()
-                    for course in raw_list_courses]
-    return jsonify(list_courses)
-
-
-@app.route('/courses', methods=["POST"])
-def create_course():
-    data_request = request.get_json()
-    if not 'name' in data_request or not 'credits' in data_request or not 'teacher_id' in data_request:
-        return jsonify({"error": "Los siguientes campos son obligatorios: name,credits, teacher_id "}), 400
-
-    teacher_id = data_request["teacher_id"]
-    teacher = Teacher.query.get_or_404(teacher_id)
-
-    new_course = Course(
-        name=data_request["name"],
-        credits=data_request["credits"],
-        teacher_id=teacher_id
-    )
-
-    try:
-        db.session.add(new_course)
-        db.session.commit()
-        return jsonify({"message": "Curso creado con éxito"})
-    except Exception as e:
-        db.session.rollback()
-        print("Error", e)
-        return jsonify({"error": "Error en el servidor"})
-
-
-@app.route('/courses/register', methods=["POST"])
-def register_course():
-    data_request = request.get_json()
-    if not 'student_id' in data_request or not 'course_id' in data_request:
-        return jsonify({"error": "Los siguientes campos son necesario:student_id, course_id"})
-
-    student = Student.query.get_or_404(data_request["student_id"])
-    course = Course.query.get_or_404(data_request["course_id"])
-
-    if course in student.courses:
-        return jsonify({"error": "Este curso ya se encuentra registrado"}), 409
-
-    student.courses.append(course)
-
-    try:
-        db.session.commit()
-        return jsonify({"message": f"Se registro el curso correctamente para {student.name}"}), 200
-    except Exception as e:
-        db.session.rollback()
-        print("Error", e)
-        return jsonify({"error": "Error en el servidor"})
-
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':

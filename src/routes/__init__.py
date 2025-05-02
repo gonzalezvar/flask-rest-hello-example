@@ -1,0 +1,1 @@
+from .course_route import course_bp
